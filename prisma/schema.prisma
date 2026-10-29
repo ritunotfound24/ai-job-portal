@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no enums in Prisma, so roles and statuses are strings
+// validated in src/lib/constants.ts.
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         String        @default("CANDIDATE") // CANDIDATE | RECRUITER
+  company      String?
+  createdAt    DateTime      @default(now())
+  resume       Resume?
+  jobs         Job[]
+  applications Application[]
+}
+
+model Resume {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName        String?
+  text            String
+  skills          String // JSON array of normalized skill names
+  experienceYears Float    @default(0)
+  score           Int      @default(0)
+  feedback        String // JSON array of feedback strings
+  summary         String?
+  updatedAt       DateTime @updatedAt
+}
+
+model Job {
+  id           String        @id @default(cuid())
+  title        String
+  company      String
+  location     String
+  remote       Boolean       @default(false)
+  type         String        @default("FULL_TIME") // FULL_TIME | INTERNSHIP | CONTRACT | PART_TIME
+  minYears     Float         @default(0)
+  salaryRange  String?
+  description  String
+  skills       String // JSON array of normalized skill names
+  open         Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  recruiterId  String
+  recruiter    User          @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([createdAt])
+}
+
+model Application {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidateId String
+  candidate   User     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  status      String   @default("APPLIED") // APPLIED | SCREENING | INTERVIEW | OFFER | REJECTED
+  matchScore  Int      @default(0)
+  coverNote   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([jobId, candidateId])
+}
